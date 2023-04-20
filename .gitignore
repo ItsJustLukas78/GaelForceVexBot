@@ -1,0 +1,7 @@
+# Ignore node modules folder
+/node_modules
+
+# Ignore .env file
+.env
+.idea
+gunk/
