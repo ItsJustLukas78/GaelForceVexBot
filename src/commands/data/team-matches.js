@@ -4,7 +4,7 @@ const {
   StringSelectMenuOptionBuilder,
   SlashCommandBuilder,
   EmbedBuilder,
-  ButtonBuilder, Faces,
+  ButtonBuilder,
 } = require('discord.js');
 const {get_team_id, get_team_season_id, get_team_events, get_team_matches } = require("../../roboteventsAPI");
 
@@ -31,15 +31,14 @@ module.exports = {
         .setName('team_number')
 				.setDescription('Team number')
         .setRequired(true)),
-	// data: new SlashCommandBuilder()...
+
 	async execute(interaction) {
       await interaction.deferReply();
       const team_number = (interaction.options.getString('team_number')).toUpperCase();
       const team_id = await get_team_id(team_number);
       const season_id = await get_team_season_id(team_id);
       const events = await get_team_events(team_id, season_id);
-
-      // Send an embed to tell the user to select a tournament
+      
       const embed = new EmbedBuilder()
         .setTitle('Select a tournament')
         .setDescription(`Select a tournament to see the matches for ${team_number}`)

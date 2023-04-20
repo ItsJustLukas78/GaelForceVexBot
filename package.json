@@ -1,10 +1,11 @@
 {
-  "name": "gael-vex-bot",
+  "name": "gael-force-vex-bot",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "main": "node src/index.js"
+    "main": "node src/index.js",
+    "deploy-commands": "node src/deploy-commands.js"
   },
   "keywords": [],
   "author": "",
