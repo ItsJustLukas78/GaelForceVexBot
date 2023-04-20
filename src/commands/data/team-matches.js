@@ -22,6 +22,22 @@ const PaginationButtons = new ActionRowBuilder()
       .setDisabled(false)
   );
 
+const NotificationButton = new ActionRowBuilder()
+  .addComponents(
+    new ButtonBuilder()
+      .setCustomId('notify')
+      .setLabel('Match Notifications')
+      .setStyle('Success')
+      .setDisabled(false)
+  );
+
+const createNotificationEmbed = new EmbedBuilder()
+  .setTitle(`Match Notifications`)
+  .setDescription(`Please select the number of precursor matches you would like to be notified before a match`)
+  .setColor('#3ba55c')
+  .setTimestamp()
+  .setFooter({text: 'Powered by RoboEvents API'});
+
 module.exports = {
   data: new SlashCommandBuilder()
 		.setName('team-matches')
@@ -100,6 +116,8 @@ module.exports = {
           if (match_fields.length === 0) {
             await interaction.editReply({
               content: `No matches found for this ${team_number} at this event`,
+              components: [],
+              embeds: [],
             });
             return;
           }
@@ -118,13 +136,10 @@ module.exports = {
 
           const matchResponse = await interaction.followUp({
             embeds: [MatchesEmbed],
-            components: pages > 1 ? [PaginationButtons] : [],
+            components: pages > 1 ? [PaginationButtons, NotificationButton] : [NotificationButton],
           });
 
-          const buttonFilter = i => {
-            return i.user.id === interaction.user.id;
-          }
-          const collector = interaction.channel.createMessageComponentCollector({ buttonFilter, time: 60000 });
+          const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
 
           collector.on('collect', async i => {
             if (i.customId === 'next') {
@@ -135,7 +150,7 @@ module.exports = {
               if (page === pages) {
                 PaginationButtons.components[1].setDisabled(true);
               }
-              await i.update({ embeds: [MatchesEmbed], components: [PaginationButtons] });
+              await i.update({ embeds: [MatchesEmbed], components: [PaginationButtons, NotificationButton] });
             } else if (i.customId === 'previous') {
               page--;
               MatchesEmbed.setFields(...match_fields.slice((page - 1) * 5, page * 5).flat());
@@ -144,15 +159,40 @@ module.exports = {
               if (page === 1) {
                 PaginationButtons.components[0].setDisabled(true);
               }
-              await i.update({ embeds: [MatchesEmbed], components: [PaginationButtons] });
+              await i.update({ embeds: [MatchesEmbed], components: [PaginationButtons, NotificationButton] });
+            } else if (i.customId === 'notify') {
+              await i.deferUpdate();
+
+              const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map(number => {
+                return new StringSelectMenuOptionBuilder()
+                  .setLabel(number)
+                  .setValue(number);
+              });
+
+              const numberSelect = new StringSelectMenuBuilder()
+                .setCustomId('number-select')
+                .setPlaceholder('Select a number')
+                .addOptions(numbers)
+
+              const numberRow = new ActionRowBuilder()
+                .addComponents(numberSelect);
+
+              createNotificationEmbed.setDescription('Please select the number of precursor matches you would like to be notified before each match')
+              const selectNotification = await i.followUp({ embeds: [createNotificationEmbed], components: [numberRow] });
+
+              const notificationConformation = await interaction.channel.awaitMessageComponent({ filter, time: 60000 });
+
+
+              if (notificationConformation.customId === 'number-select') {
+                console.log('here');
+                await notificationConformation.deferUpdate();
+                const notification_number = notificationConformation.values[0];
+
+                createNotificationEmbed.setDescription(`Match notifications for ${team_number} will be DMed to you ${notification_number} matches before each match`)
+                await notificationConformation.followUp({ embeds: [createNotificationEmbed], components: [] });
+              }
             }
           });
-
-          collector.on('end', async () => {
-            await matchResponse.editReply({ embeds: [MatchesEmbed], components: [] });
-          });
-
-
         }
       } catch (e) {
         console.log(e);
