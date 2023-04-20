@@ -7,7 +7,7 @@ const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const token = process.env.DISCORD_TOKEN;
 
 // Create a new client instance
-export const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
@@ -57,3 +57,5 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(token);
+
+module.exports = client;
