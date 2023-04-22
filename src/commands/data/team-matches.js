@@ -25,6 +25,27 @@ const createPaginationButtonsRow = (previousDisabled, nextDisabled) => {
     );
 };
 
+// Embed for match notifications
+const CreateMatchNotificationEmbed = ({title = 'Match Notifications', description = ' ', fields = []}) => {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor('#3ba55c')
+    .setTimestamp()
+    .addFields(fields)
+    .setFooter({text: 'Powered by RoboEvents API'});
+}
+
+// Embed for warnings
+const CreateWarningEmbed = ({title = 'Warning', description = ' ', fields = []}) => {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor('#ee7f49')
+    .addFields(fields)
+    .setTimestamp()
+}
+
 // Button for match notifications
 const NotificationButtonRow = new ActionRowBuilder()
   .addComponents(
@@ -34,14 +55,6 @@ const NotificationButtonRow = new ActionRowBuilder()
       .setStyle('Success')
       .setDisabled(false)
   );
-
-// Embed for match notifications
-const CreateNotificationEmbed = new EmbedBuilder()
-  .setTitle(`Match Notifications`)
-  .setDescription(` `)
-  .setColor('#3ba55c')
-  .setTimestamp()
-  .setFooter({text: 'Powered by RoboEvents API'});
 
 // Exporting the command
 module.exports = {
@@ -62,7 +75,23 @@ module.exports = {
     // Getting team and event information
     const team_number = (interaction.options.getString('team_number')).toUpperCase();
     const team_id = await get_team_id(team_number);
+
+    if (!team_id) {
+      const TeamIdWarningEmbed = CreateWarningEmbed({
+        description: `No team found with number ${(team_number).slice(0, 10)}`
+      });
+      return interaction.editReply({ embeds: [TeamIdWarningEmbed]});
+    }
+
     const season_id = await get_team_season_id(team_id);
+
+    if (!season_id) {
+      const SeasonIdWarningEmbed = CreateWarningEmbed({
+        description: `No season found for team ${team_number}`
+      });
+      return interaction.editReply({ embeds: [SeasonIdWarningEmbed]});
+    }
+
     const events = await get_team_events(team_id, season_id);
 
     // Creating the embed to prompt selection of a tournament
@@ -131,11 +160,10 @@ module.exports = {
 
         // If no matches are found for some reason, edit message and return
         if (match_fields.length === 0) {
-          await interaction.editReply({
-            content: `No matches found for this ${team_number} at this event`,
-            components: [],
-            embeds: [],
+          const NonMatchesWarningEmbed = CreateWarningEmbed({
+            description: `No matches found for ${team_number} at this event`
           });
+          await interaction.followUp({ embeds: [NonMatchesWarningEmbed]});
           return;
         }
 
@@ -152,8 +180,7 @@ module.exports = {
           .setTimestamp()
           .setFooter({text: `Page ${page} of ${pages}`})
 
-          // Five arrays (matches) are flattened into one array
-          // of objects (fields) which are then spread into addFields()
+          // Five arrays (matches) are flattened into one array of objects (fields)
           .addFields(match_fields.slice(0, 5).flat());
 
 
@@ -164,7 +191,7 @@ module.exports = {
         });
 
         // Collect interactions with buttons
-        const matchListButtonsCollector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+        const matchListButtonsCollector = matchResponse.createMessageComponentCollector({ filter, time: 60000 });
 
         // If the user interacts with the buttons
         matchListButtonsCollector.on('collect', async i => {
@@ -197,21 +224,26 @@ module.exports = {
                   .addOptions(numberStringOptions)
               );
 
-            CreateNotificationEmbed.setDescription('Please select the number of precursor matches you would like to be notified before each match')
+            const SelectNumberNotificationEmbed = CreateMatchNotificationEmbed({
+              description: 'Please select the number of precursor matches you would like to be notified before each match'
+            });
 
             // Follow up with the embed and select menu
-            const selectNotification = await i.followUp({ embeds: [CreateNotificationEmbed], components: [NumberSelectRow] });
+            const selectNotification = await i.followUp({ embeds: [SelectNumberNotificationEmbed], components: [NumberSelectRow] });
 
             // Wait for user to select a number
-            const notificationConformation = await interaction.channel.awaitMessageComponent({ filter, time: 60000 });
+            const notificationConformation = await selectNotification.awaitMessageComponent({ filter, time: 60000 });
 
             // If the user selects a number
             if (notificationConformation.customId === 'number-select') {
               await notificationConformation.deferUpdate();
               const notification_number = notificationConformation.values[0];
 
-              CreateNotificationEmbed.setDescription(`Match notifications for ${team_number} will be DMed to you ${notification_number} matches before each match`)
-              await notificationConformation.followUp({ embeds: [CreateNotificationEmbed], components: [] });
+              const ConfirmationMatchNotificationEmbed = CreateMatchNotificationEmbed({
+              description: `Match notifications for ${team_number} will be DMed to you ${notification_number} matches before each match`
+              });
+
+              await notificationConformation.followUp({ embeds: [ConfirmationMatchNotificationEmbed], components: [] });
             }
           }
         });
