@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Require the necessary discord.js classes
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, ActivityType } = require('discord.js');
 const token = process.env.DISCORD_TOKEN;
 
 // Create a new client instance
@@ -31,6 +31,7 @@ for (const folder of commandFolders) {
 // We use 'c' for the event parameter to keep it separate from the already defined 'client'
 client.once(Events.ClientReady, c => {
 	console.log(`Ready! Logged in as ${c.user.tag}`);
+	client.user.setActivity('robotics nerds', { type: ActivityType.Listening });
 });
 
 // When the client receives a new interaction, run this code
@@ -58,4 +59,4 @@ client.on(Events.InteractionCreate, async interaction => {
 
 client.login(token);
 
-module.exports = client;
+module.exports = { client };
