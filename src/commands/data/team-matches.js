@@ -170,10 +170,10 @@ module.exports = {
             await i.deferUpdate();
 
             // Create list of number options for select menu
-            const numberStringOptions = [...Array(10).keys()].map(number => {
+            const numberStringOptions = [...Array(11).keys()].slice(1).map(number => {
               return new StringSelectMenuOptionBuilder()
-                .setLabel(number.toString())
-                .setValue(number.toString());
+                  .setLabel((number).toString())
+                  .setValue((number).toString());
             });
 
             // Create select component to select number of matches before each match to be notified
@@ -182,7 +182,7 @@ module.exports = {
                 new StringSelectMenuBuilder()
                   .setCustomId('number-select')
                   .setPlaceholder('Select a number')
-                  .addOptions(numberStringOptions)
+                  .addOptions(numberStringOptions.slice(1))
               );
 
             const SelectNumberNotificationEmbed = CreateMatchNotificationEmbed({
@@ -201,7 +201,7 @@ module.exports = {
               const notification_number = notificationConformation.values[0];
 
               const ConfirmationMatchNotificationEmbed = CreateMatchNotificationEmbed({
-              description: `Match notifications for ${team_number} will be DMed to you ${notification_number} matches before each match`
+              description: `Please check your DM's for confirmation on receiving match notifications for ${team_number}, ${notification_number} matches before each match!`
               });
 
               await notificationConformation.followUp({ embeds: [ConfirmationMatchNotificationEmbed], components: [] });

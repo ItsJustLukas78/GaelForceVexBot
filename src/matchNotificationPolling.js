@@ -1,16 +1,12 @@
 const {
-  get_team_id,
-  get_team_season_id,
-  get_team_events,
-  get_team_matches,
-  get_event_divisions,
   get_event_matches
 } = require("./roboteventsAPI.js")
 const {
   CreateMatchNotificationEmbed,
 } = require("./rows.js")
-
-const client = require("./index.js")
+const {
+  Client,
+} = require('index.js');
 
 // const fs = require('fs');
 // const path = require('path');
@@ -34,7 +30,13 @@ const client = require("./index.js")
 //     "match_number": "8",
 //   }
 // }
-const matchNotificationList = {};
+const matchNotificationList = [];
+
+// const sort_matches_by_date = (matches) => {
+//   return matches.sort((match_a, match_b) => {
+//     return new Date(match_a.match_time).getTime() - new Date(match_b.match_time).getTime();
+//   });
+// }
 
 // Function to add a user to the list
 const optUserForMatchNotifications = async (parameters) => {
@@ -75,24 +77,33 @@ const optUserForMatchNotifications = async (parameters) => {
 
   matches_to_notify.forEach((match, index) => {
     // If the match is not in the list, add it
-    if (!matchNotificationList[match.id]) {
-      matchNotificationList[match.id] = {
-        optedUsers: [],
+    const matchIndex = matchNotificationList.findIndex(foundMatch => foundMatch.id === match.id);
+    if (matchIndex === -1) {
+      matchNotificationList.push({
+        id: match.id,
+        optedUsers: [
+          {
+            user_id: discord_user_id,
+            matches_beforehand: matches_beforehand,
+            match_name: team_matches[index].name,
+          }
+        ],
         match_time: match.scheduled,
         tournament_id: tournament_id,
         division_id: division_id,
         round: match.round,
         match_number: match.matchnum,
-      };
-    }
-
-    if (!matchNotificationList[match.id].optedUsers.some((user) => user.user_id === discord_user_id)) {
-      // Add the user to the list of users to be notified
-      matchNotificationList[match.id].optedUsers.push({
-        user_id: discord_user_id,
-        matches_beforehand: matches_beforehand,
-        match_name: team_matches[index].name,
       });
+    } else {
+      // If the match is in the list, check if the user is in the list
+      if (!matchNotificationList[matchIndex].optedUsers.some((user) => user.user_id === discord_user_id)) {
+        // Add the user to the list of users to be notified
+        matchNotificationList[matchIndex].optedUsers.push({
+          user_id: discord_user_id,
+          matches_beforehand: matches_beforehand,
+          match_name: team_matches[index].name,
+        });
+      }
     }
   });
 
@@ -100,18 +111,65 @@ const optUserForMatchNotifications = async (parameters) => {
   //  const confirm_message = `You will be notified for the following matches: ${matches_to_notify.map((match) => match.name).join(", ")}`;
 
    const ConfirmEmbed = CreateMatchNotificationEmbed({
-      description: `You are set to receive notifications ${matches_beforehand} match(es) before ${team_number}'s matches at ${tournament_name.slice(0, 50)}`,
+      description: `You are set to receive notifications ${matches_beforehand} match(es) before ${team_number}'s matches at ${tournament_name.slice(0, 50)}!`,
    });
    await discord_user_object.send({ embeds: [ConfirmEmbed] });
+
+   // sort_matches_by_date(matchNotificationList);
+   //
+   // console.log(matchNotificationList);
 
  } catch (error) {
    console.error(error);
  }
 }
 
+// Polling function to check if a match is about to start
+const checkMatchNotifications = async () => {
+  // Only check matches that are about to start
+  const upcoming_matches = matchNotificationList.filter((match) => {
+    return new Date(match.match_time).getTime() - Date.now() < 900000;
+  });
+
+  upcoming_matches.map(async (match) => {
+    const latest_match = get_event_matches(
+      match.tournament_id,
+      match.division_id,
+      match.round,
+      match.match_number,
+    );
+
+    if (!latest_match) {
+      upcoming_matches.pop(match);
+      return;
+    }
+
+    if (!latest_match.started) {
+      return;
+    }
+
+    // Get the users to notify
+    match.optedUsers.map(async (user) => {
+      const user_object = await Client.users.fetch(user.user_id);
+      const match_notification_embed = CreateMatchNotificationEmbed({
+        title: latest_match.name,
+        description: `${user.matches_beforehand} match(es) before ${user.match_name}! The match is about to start!`,
+      });
+      await user_object.send({ embeds: [match_notification_embed] });
+    });
+
+    // Remove the match from the list
+    upcoming_matches.pop(match);
+  })
+}
+
+const startMatchNotificationPolling = () => {
+  setInterval(checkMatchNotifications, 15000);
+}
 
 module.exports = {
   optUserForMatchNotifications,
+  startMatchNotificationPolling,
 }
 
 

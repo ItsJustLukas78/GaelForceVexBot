@@ -174,14 +174,14 @@ async function get_event_divisions(event_id) {
 }
 
 // Get all matches at an event given the event id and division
-async function get_event_matches(event_id, division_id, round) {
+async function get_event_matches(event_id, division_id, round, matchnum) {
   const url = `https://www.robotevents.com/api/v2/events/${event_id}/divisions/${division_id}/matches`;
   const new_headers = {
     "accept": "application/json",
     "Authorization": "Bearer " + API_KEY,
   };
 
-  const new_params = { round: round ? round : {} };
+  const new_params = { round: round ? round : {}, matchnum: matchnum ? matchnum : {}};
 
   const division_matches = [];
 
