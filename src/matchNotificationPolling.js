@@ -4,9 +4,10 @@ const {
 const {
   CreateMatchNotificationEmbed,
 } = require("./rows.js")
-const {
-  Client,
-} = require('index.js');
+const {getWSConnection} = require("./websocket");
+// const {
+//   Client,
+// } = require('./index.js');
 
 // const fs = require('fs');
 // const path = require('path');
@@ -156,6 +157,14 @@ const checkMatchNotifications = async () => {
         description: `${user.matches_beforehand} match(es) before ${user.match_name}! The match is about to start!`,
       });
       await user_object.send({ embeds: [match_notification_embed] });
+
+      if (user.user_id === process.env.JAIVEER_ID) {
+        const WS_connection = getWSConnection();
+        if (WS_connection && WS_connection.connected) {
+          console.log("Sending ping to Jaiveer");
+          WS_connection.sendUTF(JSON.stringify({ message: "0" }));
+        }
+      }
     });
 
     // Remove the match from the list

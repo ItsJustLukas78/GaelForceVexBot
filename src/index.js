@@ -5,6 +5,7 @@ const path = require('path');
 // Require the necessary discord.js classes
 const { Client, Collection, Events, GatewayIntentBits, ActivityType } = require('discord.js');
 const { startMatchNotificationPolling } = require("./matchNotificationPolling");
+const {startWSConnection} = require("./websocket");
 const token = process.env.DISCORD_TOKEN;
 
 // Create a new client instance
@@ -33,6 +34,7 @@ for (const folder of commandFolders) {
 client.once(Events.ClientReady, c => {
 	console.log(`Ready! Logged in as ${c.user.tag}`);
 	client.user.setActivity('robotics nerds', { type: ActivityType.Listening });
+	startWSConnection();
 	startMatchNotificationPolling();
 });
 

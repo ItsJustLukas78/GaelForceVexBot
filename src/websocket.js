@@ -17,22 +17,16 @@ client.on('connect', function(connection) {
   connection.on('close', function() {
     console.log('Connection Closed');
   });
-
-  // Send json with field "message"
-  // const pingJaiveer = () => {
-  //   if (connection.connected) {
-  //     connection.sendUTF(JSON.stringify({ message: "Jaiveer please help us!!!!" }));
-  //   }
-  // }
-  // pingJaiveer();
 });
 
-client.connect('ws://localhost:4242/');
+const startWSConnection = () => {
+  client.connect('ws://localhost:4242/');
+}
 
 const getWSConnection = () => {
   return WS_connection;
 }
 
-module.exports = { getWSConnection };
+module.exports = { getWSConnection, startWSConnection };
 
 
