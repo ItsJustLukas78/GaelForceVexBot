@@ -5,13 +5,10 @@ const {
   CreateMatchNotificationEmbed,
 } = require("./rows.js")
 const {getWSConnection} = require("./websocket");
-// const {
-//   Client,
-// } = require('./index.js');
 
-// const fs = require('fs');
-// const path = require('path');
-// const json_file = path.join(__dirname, 'matchNotificationList.json');
+const fs = require('fs');
+const path = require('path');
+const json_file = path.join(__dirname, 'matchNotificationList.json');
 
 // {
 //   "match_id": {
@@ -31,7 +28,7 @@ const {getWSConnection} = require("./websocket");
 //     "match_number": "8",
 //   }
 // }
-const matchNotificationList = [];
+const matchNotificationList = JSON.parse(fs.readFileSync(json_file, 'utf8'));
 
 // const sort_matches_by_date = (matches) => {
 //   return matches.sort((match_a, match_b) => {
@@ -72,7 +69,7 @@ const optUserForMatchNotifications = async (parameters) => {
       if (team_match.matchnum - matches_beforehand < 0) {
         return team_match.matchnum === division_matches[0].matchnum;
       }
-      return team_match.matchnum === match.matchnum - matches_beforehand;
+      return team_match.matchnum - matches_beforehand === match.matchnum;
     });
   });
 
@@ -116,6 +113,9 @@ const optUserForMatchNotifications = async (parameters) => {
    });
    await discord_user_object.send({ embeds: [ConfirmEmbed] });
 
+   // save to json file
+   fs.writeFileSync(json_file, JSON.stringify(matchNotificationList, null, 2));
+
    // sort_matches_by_date(matchNotificationList);
    //
    // console.log(matchNotificationList);
@@ -126,13 +126,14 @@ const optUserForMatchNotifications = async (parameters) => {
 }
 
 // Polling function to check if a match is about to start
-const checkMatchNotifications = async () => {
+const checkMatchNotifications = async (client) => {
+  console.log("polling")
   // Only check matches that are about to start
-  const upcoming_matches = matchNotificationList.filter((match) => {
-    return new Date(match.match_time).getTime() - Date.now() < 900000;
-  });
+  // const upcoming_matches = matchNotificationList.filter((match) => {
+  //   return new Date(match.match_time).getTime() - Date.now() < 900000;
+  // });
 
-  upcoming_matches.map(async (match) => {
+  matchNotificationList.map(async (match) => {
     const latest_match = get_event_matches(
       match.tournament_id,
       match.division_id,
@@ -141,22 +142,22 @@ const checkMatchNotifications = async () => {
     );
 
     if (!latest_match) {
-      upcoming_matches.pop(match);
+      matchNotificationList.pop(match);
       return;
     }
 
-    if (!latest_match.started) {
+    if ((latest_match.started === null) || (typeof latest_match.started === undefined)) {
       return;
     }
 
     // Get the users to notify
     match.optedUsers.map(async (user) => {
-      const user_object = await Client.users.fetch(user.user_id);
       const match_notification_embed = CreateMatchNotificationEmbed({
         title: latest_match.name,
         description: `${user.matches_beforehand} match(es) before ${user.match_name}! The match is about to start!`,
       });
-      await user_object.send({ embeds: [match_notification_embed] });
+
+      await client.users.send(user.user_id, { embeds: [match_notification_embed] });
 
       if (user.user_id === process.env.JAIVEER_ID) {
         const WS_connection = getWSConnection();
@@ -168,12 +169,15 @@ const checkMatchNotifications = async () => {
     });
 
     // Remove the match from the list
-    upcoming_matches.pop(match);
+    matchNotificationList.pop(match);
   })
+
+  // save to json file
+  fs.writeFileSync(json_file, JSON.stringify(matchNotificationList, null, 2));
 }
 
-const startMatchNotificationPolling = () => {
-  setInterval(checkMatchNotifications, 15000);
+const startMatchNotificationPolling = (client) => {
+  setInterval(() => checkMatchNotifications(client), 15000);
 }
 
 module.exports = {

@@ -17,7 +17,18 @@ client.on('connect', function(connection) {
   connection.on('close', function() {
     console.log('Connection Closed');
   });
+
+  connection.on('message', function(message) {
+    if (message.type === 'utf8') {
+      console.log("Received: '" + message.utf8Data + "'");
+      if (message.utf8Data === "0") {
+        console.log("Received ping from Jaiveer");
+      }
+    }
+  });
 });
+
+
 
 const startWSConnection = () => {
   client.connect('ws://localhost:4242/');

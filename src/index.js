@@ -35,7 +35,7 @@ client.once(Events.ClientReady, c => {
 	console.log(`Ready! Logged in as ${c.user.tag}`);
 	client.user.setActivity('robotics nerds', { type: ActivityType.Listening });
 	startWSConnection();
-	startMatchNotificationPolling();
+	startMatchNotificationPolling(client);
 });
 
 // When the client receives a new interaction, run this code
@@ -62,5 +62,3 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(token);
-
-module.exports = { client };
