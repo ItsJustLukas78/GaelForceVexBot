@@ -74,6 +74,10 @@ const optUserForMatchNotifications = async (parameters) => {
   });
 
   matches_to_notify.forEach((match, index) => {
+    // check if the match has already passed
+    if (match.started !== null) {
+      return;
+    }
     // If the match is not in the list, add it
     const matchIndex = matchNotificationList.findIndex(foundMatch => foundMatch.id === match.id);
     if (matchIndex === -1) {
