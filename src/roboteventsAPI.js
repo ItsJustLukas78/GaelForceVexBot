@@ -145,89 +145,67 @@ async function get_team_matches(team_id, event_id) {
   }
 }
 
-module.exports = { get_team_id, get_team_season_id, get_team_events, get_team_matches };
 
-// // Get the event id from the event code since the API does not use event code for other requests
-// async function get_event_id(event_code) {
-//   const url = "https://www.robotevents.com/api/v2/events";
-//   const new_headers = {
-//     "accept": "application/json",
-//     "Authorization": "Bearer " + API_KEY,
-//   };
-//   const new_params = { sku: event_code };
-//
-//   try {
-//     const response = await axios.get(url, { params: new_params, headers: new_headers });
-//
-//     if (response.status === 200) {
-//       try {
-//         return response.data.data[0].id;
-//       } catch (error) {
-//         console.warn("Error: " + response.status + " getting event id");
-//         return null;
-//       }
-//     } else {
-//       console.warn("Error: " + response.status + " getting event id");
-//
-//       if (response.status === 429) {
-//         const wait_time = parseInt(response.headers["retry-after"] || "5") + 1;
-//         console.warn(`Sleeping for ${wait_time} seconds`);
-//         await new Promise((resolve) => setTimeout(resolve, wait_time * 1000));
-//         return get_event_id(event_code);
-//       } else {
-//         return null;
-//       }
-//     }
-//   } catch (error) {
-//     console.error(error);
-//   }
-// }
+// Get all the divisions for a given event
+async function get_event_divisions(event_id) {
+  const url = `https://www.robotevents.com/api/v2/events/${event_id}`;
+  const new_headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer " + API_KEY,
+  };
+  const new_params = { event: event_id };
 
+  try {
+    const response = await apiCall(url, new_headers, new_params);
 
-// // Get a list of the teams from the event using the event id
-// async function get_teams(event_id) {
-//   const url = `https://www.robotevents.com/api/v2/events/${event_id}/teams`;
-//   const new_headers = {
-//     "accept": "application/json",
-//     "Authorization": "Bearer " + API_KEY,
-//   };
-//
-//   const teams = [];
-//
-//   try {
-//     const response = await axios.get(url, { headers: new_headers });
-//
-//     if (response.status !== 200) {
-//       console.log("Error: " + response.status + " getting teams");
-//
-//       if (response.status === 429) {
-//         const wait_time = parseInt(response.headers["retry-after"] || "5") + 1;
-//         console.log(`Sleeping for ${wait_time} seconds`);
-//         await new Promise((resolve) => setTimeout(resolve, wait_time * 1000));
-//         return get_teams(event_id);
-//       } else {
-//         return null;
-//       }
-//     } else {
-//       teams.push(...response.data.data);
-//
-//       let next_page_url = response.data.meta.next_page_url;
-//
-//       while (next_page_url) {
-//         const nextPageResponse = await axios.get(next_page_url, { headers: new_headers });
-//
-//         if (nextPageResponse.status !== 200) {
-//           console.log("Error: " + nextPageResponse.status + " getting teams");
-//           return null;
-//         }
-//
-//         next_page_url = nextPageResponse.data.meta.next_page_url;
-//         teams.push(...nextPageResponse.data.data);
-//       }
-//
-//       return teams;
-//     }
-//   } catch (error) {
-//     console.error(error);
-//   }
-// }
+    const divisions = response.data?.divisions;
+
+    if (!divisions) {
+      console.warn("Warning: No divisions could be found");
+      return null;
+    }
+
+    return divisions.map((division) => division.id);
+
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+// Get all matches at an event given the event id and division
+async function get_event_matches(event_id, division_id, round, matchnum) {
+  const url = `https://www.robotevents.com/api/v2/events/${event_id}/divisions/${division_id}/matches`;
+  const new_headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer " + API_KEY,
+  };
+
+  const new_params = { round: round ? round : {}, matchnum: matchnum ? matchnum : {}};
+
+  const division_matches = [];
+
+  try {
+    const response = await apiCall(url, new_headers, new_params)
+
+    division_matches.push(...response.data.data);
+
+    let next_page_url = response.data.meta.next_page_url;
+
+    while (next_page_url) {
+      const nextPageResponse = await apiCall(next_page_url, new_headers, new_params);
+
+      next_page_url = nextPageResponse.data.meta.next_page_url;
+
+      division_matches.push(...nextPageResponse.data.data);
+    }
+
+    return division_matches;
+
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+module.exports = { get_team_id, get_team_season_id, get_team_events, get_team_matches, get_event_divisions, get_event_matches };

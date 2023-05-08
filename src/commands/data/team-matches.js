@@ -1,60 +1,18 @@
+const {get_team_id, get_team_season_id, get_team_events, get_team_matches } = require("../../roboteventsAPI");
+const { optUserForMatchNotifications } = require("../../matchNotificationPolling");
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   SlashCommandBuilder,
-  EmbedBuilder,
-  ButtonBuilder,
+  EmbedBuilder
 } = require('discord.js');
-const {get_team_id, get_team_season_id, get_team_events, get_team_matches } = require("../../roboteventsAPI");
-
-// Buttons for pagination of embeds
-const createPaginationButtonsRow = (previousDisabled, nextDisabled) => {
-  return new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId('previous')
-        .setLabel('Previous')
-        .setStyle('Primary')
-        .setDisabled(previousDisabled),
-      new ButtonBuilder()
-        .setCustomId('next')
-        .setLabel('Next')
-        .setStyle('Primary')
-        .setDisabled(nextDisabled)
-    );
-};
-
-// Embed for match notifications
-const CreateMatchNotificationEmbed = ({title = 'Match Notifications', description = ' ', fields = []}) => {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setColor('#3ba55c')
-    .setTimestamp()
-    .addFields(fields)
-    .setFooter({text: 'Powered by RoboEvents API'});
-}
-
-// Embed for warnings
-const CreateWarningEmbed = ({title = 'Warning', description = ' ', fields = []}) => {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setColor('#ee7f49')
-    .addFields(fields)
-    .setTimestamp()
-}
-
-// Button for match notifications
-const NotificationButtonRow = new ActionRowBuilder()
-  .addComponents(
-    new ButtonBuilder()
-      .setCustomId('notify')
-      .setLabel('Match Notifications')
-      .setStyle('Success')
-      .setDisabled(false)
-  );
+const {
+  createPaginationButtonsRow,
+  CreateMatchNotificationEmbed,
+  CreateWarningEmbed,
+  NotificationButtonRow,
+} = require('../../rows');
 
 // Exporting the command
 module.exports = {
@@ -135,7 +93,10 @@ module.exports = {
       // If the tournament select menu is interacted with
       if (confirmation.customId === 'team-event-list') {
         await confirmation.deferUpdate();
-        const team_matches_response = await get_team_matches(team_id, confirmation.values[0]);
+        const tournament_id = confirmation.values[0];
+        const team_matches_response = await get_team_matches(team_id, tournament_id);
+        const team_division = team_matches_response[0].division.id;
+        const tournament_name = team_matches_response[0].event.name;
 
         // Creating an array of arrays consisting of to-be field objects representing a match
         const match_fields = team_matches_response.map(match => {
@@ -209,10 +170,10 @@ module.exports = {
             await i.deferUpdate();
 
             // Create list of number options for select menu
-            const numberStringOptions = [...Array(10).keys()].map(number => {
+            const numberStringOptions = [...Array(11).keys()].slice(1).map(number => {
               return new StringSelectMenuOptionBuilder()
-                .setLabel(number.toString())
-                .setValue(number.toString());
+                  .setLabel((number).toString())
+                  .setValue((number).toString());
             });
 
             // Create select component to select number of matches before each match to be notified
@@ -221,7 +182,7 @@ module.exports = {
                 new StringSelectMenuBuilder()
                   .setCustomId('number-select')
                   .setPlaceholder('Select a number')
-                  .addOptions(numberStringOptions)
+                  .addOptions(numberStringOptions.slice(1))
               );
 
             const SelectNumberNotificationEmbed = CreateMatchNotificationEmbed({
@@ -240,10 +201,22 @@ module.exports = {
               const notification_number = notificationConformation.values[0];
 
               const ConfirmationMatchNotificationEmbed = CreateMatchNotificationEmbed({
-              description: `Match notifications for ${team_number} will be DMed to you ${notification_number} matches before each match`
+              description: `Please check your DM's for confirmation on receiving match notifications for ${team_number}, ${notification_number} matches before each match!`
               });
 
               await notificationConformation.followUp({ embeds: [ConfirmationMatchNotificationEmbed], components: [] });
+
+              // Add the user to the poller
+              await optUserForMatchNotifications({
+                tournament_name: tournament_name,
+                tournament_id: tournament_id,
+                team_number: team_number,
+                team_id: team_id,
+                division_id: team_division,
+                matches_beforehand: notification_number,
+                discord_user_id: interaction.user.id,
+                discord_user_object: interaction.user,
+              });
             }
           }
         });
